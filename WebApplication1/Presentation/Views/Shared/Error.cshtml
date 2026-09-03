@@ -1,0 +1,9 @@
+@{ ViewData["Title"] = "Something went wrong"; Layout = "_Layout"; }
+<div class="page-container">
+    <div class="card empty-state" style="max-width:480px;margin:3rem auto">
+        <i class="fa-solid fa-circle-exclamation" style="color:#e11d48"></i>
+        <h1 style="font-size:1.1rem;margin:0 0 0.35rem">We couldn't complete that request</h1>
+        <p class="text-muted mb-0">@(TempData["ErrorMessage"]?.ToString() ?? "Please try again in a moment.")</p>
+        <a class="btn btn-primary mt-3" asp-controller="Feed" asp-action="Index">Return to feed</a>
+    </div>
+</div>

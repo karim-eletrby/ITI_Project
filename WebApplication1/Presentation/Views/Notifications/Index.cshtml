@@ -1,0 +1,16 @@
+@{ ViewData["Title"] = "Notifications"; }
+<div class="page-container">
+    <header class="page-header notifications-page-header">
+        <div>
+            <p class="eyebrow">Updates</p>
+            <h1>Notifications</h1>
+        </div>
+        <button type="button" id="notifications-page-mark-read" class="btn btn-light btn-sm">Mark all as read</button>
+    </header>
+
+    <div class="card notifications-page-card">
+        <div id="notifications-page-list" class="notifications-page-list">
+            <div class="notif-item notif-empty text-muted" style="justify-content:center">Loading notifications…</div>
+        </div>
+    </div>
+</div>

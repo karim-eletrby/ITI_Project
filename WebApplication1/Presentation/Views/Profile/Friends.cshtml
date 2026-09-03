@@ -1,0 +1,42 @@
+@model ProfileFriendsPageViewModel
+@{ ViewData["Title"] = $"{Model.Profile.DisplayName}'s friends"; }
+<div class="page-container">
+    <header class="page-header">
+        <a asp-action="Index" asp-route-userId="@(Model.IsCurrentUser ? null : Model.Profile.Id)" class="text-muted" style="font-size:0.88rem;text-decoration:none">
+            <i class="fa-solid fa-arrow-left"></i> Back to profile
+        </a>
+        <h1 style="margin-top:0.5rem">@Model.Profile.DisplayName's friends</h1>
+        <p class="text-muted mb-0">@Model.Friends.Count friend@(Model.Friends.Count == 1 ? "" : "s")</p>
+    </header>
+
+    @if (Model.Friends.Any())
+    {
+        <div class="friends-grid friends-grid-page">
+            @foreach (var friend in Model.Friends)
+            {
+                <a asp-action="Index" asp-route-userId="@friend.UserId" class="friend-card friend-card-lg">
+                    <span class="avatar avatar-lg">
+                        @if (!string.IsNullOrWhiteSpace(friend.ProfilePictureUrl))
+                        {
+                            <img src="@friend.ProfilePictureUrl" alt="" />
+                        }
+                        else
+                        {
+                            @friend.DisplayName.FirstOrDefault()
+                        }
+                    </span>
+                    <span style="min-width:0">
+                        <strong style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@friend.DisplayName</strong>
+                        <small class="text-muted">@friend.Username</small>
+                    </span>
+                </a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="card card-body empty-state" style="padding:2rem">
+            <p class="mb-0">No friends to show yet.</p>
+        </div>
+    }
+</div>

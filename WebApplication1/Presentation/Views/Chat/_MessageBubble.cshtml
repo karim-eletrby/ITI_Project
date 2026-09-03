@@ -1,0 +1,54 @@
+@model Application.DTOs.MessageDtos.MessageDto
+@{
+    var outgoing = ViewData["Outgoing"] as bool? ?? false;
+    var shared = Model.SharedPost;
+}
+<div class="message-row @(outgoing ? "outgoing" : "incoming")">
+    <div class="message-bubble">
+        @if (!string.IsNullOrWhiteSpace(Model.Content))
+        {
+            <div class="message-text">@Model.Content</div>
+        }
+        @if (shared != null)
+        {
+            var isVideo = false;
+            if (!string.IsNullOrWhiteSpace(shared.MediaUrl))
+            {
+                var ext = System.IO.Path.GetExtension(shared.MediaUrl).ToLowerInvariant();
+                isVideo = ext is ".mp4" or ".webm" or ".mov" or ".m4v";
+            }
+            <a href="/Feed#post-@shared.Id" class="chat-shared-post">
+                <div class="chat-shared-post-header">
+                    <span class="avatar avatar-sm">
+                        @if (!string.IsNullOrWhiteSpace(shared.AuthorProfilePictureUrl))
+                        {
+                            <img src="@shared.AuthorProfilePictureUrl" alt="" />
+                        }
+                        else
+                        {
+                            @shared.AuthorName.FirstOrDefault()
+                        }
+                    </span>
+                    <span class="chat-shared-post-author">@shared.AuthorName</span>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(shared.Content))
+                {
+                    <p class="chat-shared-post-content">@(shared.Content.Length > 160 ? shared.Content[..160] + "…" : shared.Content)</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(shared.MediaUrl))
+                {
+                    if (isVideo)
+                    {
+                        <video src="@shared.MediaUrl" class="chat-shared-post-media" muted playsinline preload="metadata"></video>
+                    }
+                    else
+                    {
+                        <img src="@shared.MediaUrl" alt="Post media" class="chat-shared-post-media" />
+                    }
+                }
+                <span class="chat-shared-post-cta">View post <i class="fa-solid fa-arrow-up-right-from-square"></i></span>
+            </a>
+        }
+        <div class="message-time">@Model.SentAt.ToLocalTime().ToString("h:mm tt")</div>
+    </div>
+</div>

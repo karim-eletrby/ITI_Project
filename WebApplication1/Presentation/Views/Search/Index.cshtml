@@ -1,0 +1,62 @@
+@model WebApplication1.Models.ViewModels.SearchPageViewModel
+@{ ViewData["Title"] = "Explore"; }
+<div class="page-container">
+    <header class="page-header">
+        <p class="eyebrow">Discover</p>
+        <h1>Find people on Connectly</h1>
+    </header>
+
+    <form id="explore-search-form" asp-action="Index" method="get" style="margin-bottom:1.5rem">
+        <div style="display:flex;gap:0.5rem;max-width:560px">
+            <input type="search" id="explore-search-input" name="q" value="@Model.Query" class="form-control" placeholder="Search by name or username..." autofocus autocomplete="off" />
+            <button type="submit" class="btn btn-primary">Search</button>
+        </div>
+    </form>
+
+    <div id="search-results">
+        @if (string.IsNullOrWhiteSpace(Model.Query))
+        {
+            <section>
+                <h2 style="font-size:1.05rem;margin:0 0 0.85rem">People you can connect with</h2>
+                @if (Model.DiscoverUsers.Any())
+                {
+                    <div class="discover-grid">
+                        @foreach (var user in Model.DiscoverUsers)
+                        {
+                            <partial name="_UserDiscoverCard" model="user" />
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="card empty-state">
+                        <i class="fa-solid fa-user-group"></i>
+                        <p class="mb-0">No new people to suggest right now. Try searching above.</p>
+                    </div>
+                }
+            </section>
+        }
+        else if (!Model.Results.Users.Any())
+        {
+            <div class="card empty-state">
+                <p class="mb-0">No people found for "<strong>@Model.Query</strong>".</p>
+            </div>
+        }
+        else
+        {
+            <section class="search-section">
+                <h2>People</h2>
+                <div class="discover-grid">
+                    @foreach (var user in Model.Results.Users)
+                    {
+                        <partial name="_UserDiscoverCard" model="user" />
+                    }
+                </div>
+            </section>
+        }
+    </div>
+</div>
+
+@section Scripts {
+<script src="~/js/explore-search.js" asp-append-version="true"></script>
+}

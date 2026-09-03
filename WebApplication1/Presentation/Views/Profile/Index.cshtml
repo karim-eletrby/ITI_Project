@@ -1,0 +1,410 @@
+@model ProfilePageViewModel
+@{ ViewData["Title"] = Model.Profile.DisplayName; }
+<div class="page-container">
+    <div class="card profile-header">
+        <div class="profile-cover @(Model.IsCurrentUser ? "upload-target" : "")" id="profile-cover">
+            @if (!string.IsNullOrWhiteSpace(Model.Profile.CoverPictureUrl))
+            {
+                <img src="@Model.Profile.CoverPictureUrl" alt="" id="cover-preview" />
+            }
+            @if (Model.IsCurrentUser)
+            {
+                <label class="upload-overlay cover-overlay" for="cover-upload">
+                    <i class="fa-solid fa-camera"></i> Change cover photo
+                </label>
+                <input type="file" id="cover-upload" class="d-none" accept="image/*" />
+            }
+        </div>
+        <div class="profile-body">
+            <div class="profile-avatar-wrap">
+                <div class="profile-avatar-container @(Model.IsCurrentUser ? "upload-target" : "")">
+                    <span class="avatar avatar-xl profile-avatar" id="profile-avatar">
+                        @if (!string.IsNullOrWhiteSpace(Model.Profile.ProfilePictureUrl))
+                        {
+                            <img src="@Model.Profile.ProfilePictureUrl" alt="" id="avatar-preview" />
+                        }
+                        else
+                        {
+                            <span id="avatar-preview">@Model.Profile.DisplayName.FirstOrDefault()</span>
+                        }
+                    </span>
+                    @if (Model.IsCurrentUser)
+                    {
+                        <label class="upload-overlay avatar-overlay" for="avatar-upload">
+                            <i class="fa-solid fa-camera"></i>
+                        </label>
+                        <input type="file" id="avatar-upload" class="d-none" accept="image/*" />
+                    }
+                </div>
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                    @if (Model.IsCurrentUser)
+                    {
+                        <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('edit-profile-modal').classList.add('open')">
+                            <i class="fa-solid fa-pen"></i> Edit Profile
+                        </button>
+                    }
+                    else
+                    {
+                        @await Html.PartialAsync("_FriendActionButton", Model.FriendshipStatus, new ViewDataDictionary(ViewData) { { "UserId", Model.Profile.Id } })
+                        @if (Model.FriendshipStatus != "Blocked")
+                        {
+                            <a asp-controller="Chat" asp-action="Index" asp-route-id="@Model.Profile.Id" class="btn btn-light btn-sm">
+                                <i class="fa-solid fa-comment-dots"></i> Message
+                            </a>
+                        }
+                    }
+                </div>
+            </div>
+            <h1 class="profile-name">@Model.Profile.DisplayName</h1>
+            <p class="profile-handle">@Model.Profile.Username</p>
+            @if (Model.IsCurrentUser)
+            {
+                <p class="profile-email text-muted" style="font-size:0.9rem;margin:0.25rem 0 0.5rem">
+                    @Model.Profile.Email
+                    <button type="button" class="btn btn-link btn-sm" style="padding:0 0 0 0.35rem;font-size:0.82rem" onclick="document.getElementById('change-email-modal').classList.add('open')">Change</button>
+                </p>
+            }
+            <p class="profile-bio">@(string.IsNullOrWhiteSpace(Model.Profile.Bio) ? "No bio yet." : Model.Profile.Bio)</p>
+            <div class="profile-stats">
+                <span><strong>@Model.Profile.PostsCount</strong> Posts</span>
+                <span><strong>@Model.Profile.FriendsCount</strong> Friends</span>
+                <span>Joined @Model.Profile.CreatedAt.ToString("MMMM yyyy")</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="profile-grid">
+        <aside>
+            <div class="card card-body">
+                <h3 style="margin:0 0 0.85rem;font-size:1rem">Info</h3>
+                <div class="intro-item"><i class="fa-solid fa-user"></i> @Model.Profile.DisplayName</div>
+                <div class="intro-item"><i class="fa-solid fa-id-badge"></i> @Model.Profile.Username</div>
+                <div class="intro-item"><i class="fa-solid fa-cake-candles"></i> Birthday: @Model.Profile.DateOfBirth.ToString("MMMM d")</div>
+                @if (Model.IsCurrentUser)
+                {
+                    <div class="intro-item"><i class="fa-solid fa-envelope"></i> @Model.Profile.Email</div>
+                }
+            </div>
+
+            <div class="card card-body profile-friends-card">
+                <h3 style="margin:0 0 0.85rem;font-size:1rem">
+                    Friends
+                    @if (Model.Profile.FriendsCount > ProfilePageViewModel.FriendsDisplayLimit)
+                    {
+                        <small class="text-muted">(showing @ProfilePageViewModel.FriendsDisplayLimit of @Model.Profile.FriendsCount)</small>
+                    }
+                </h3>
+                <div class="friends-grid" id="profile-friends-list">
+                    @if (Model.Friends.Any())
+                    {
+                        @foreach (var friend in Model.Friends.Take(ProfilePageViewModel.FriendsDisplayLimit))
+                        {
+                            <a asp-action="Index" asp-route-userId="@friend.UserId" class="friend-card">
+                                <span class="avatar avatar-md">
+                                    @if (!string.IsNullOrWhiteSpace(friend.ProfilePictureUrl))
+                                    {
+                                        <img src="@friend.ProfilePictureUrl" alt="" />
+                                    }
+                                    else
+                                    {
+                                        @friend.DisplayName.FirstOrDefault()
+                                    }
+                                </span>
+                                <span style="min-width:0">
+                                    <strong style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@friend.DisplayName</strong>
+                                    <small class="text-muted">@friend.Username</small>
+                                </span>
+                            </a>
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0">No friends to display yet. <a asp-controller="Search" asp-action="Index">Find people</a> to connect with.</p>
+                    }
+                </div>
+                @if (Model.Profile.FriendsCount > 0)
+                {
+                    <a asp-action="Friends"
+                       asp-route-userId="@(Model.IsCurrentUser ? null : Model.Profile.Id)"
+                       class="btn btn-primary btn-sm w-100 mt-2 profile-friends-see-all">
+                        See all @Model.Profile.FriendsCount friend@(Model.Profile.FriendsCount == 1 ? "" : "s")
+                    </a>
+                }
+            </div>
+        </aside>
+        <section>
+            @if (Model.IsCurrentUser)
+            {
+                <div class="card card-body" style="margin-bottom:1rem">
+                    <div class="composer">
+                        <span class="avatar avatar-md">
+                            @if (!string.IsNullOrWhiteSpace(Model.Profile.ProfilePictureUrl))
+                            {
+                                <img src="@Model.Profile.ProfilePictureUrl" alt="" />
+                            }
+                            else
+                            {
+                                @Model.Profile.DisplayName.FirstOrDefault()
+                            }
+                        </span>
+                        <button type="button" id="open-create-post" class="composer-trigger">What's on your mind?</button>
+                    </div>
+                </div>
+            }
+
+            <div style="margin-bottom:1rem">
+                <h3 style="font-size:1rem;margin:0 0 0.85rem">Posts</h3>
+                @if (Model.Posts.Items.Any())
+                {
+                    foreach (var post in Model.Posts.Items)
+                    {
+                        <partial name="~/Views/Posts/_PostCard.cshtml" model="post" />
+                    }
+                    @if (Model.Posts.HasNextPage)
+                    {
+                        <a class="btn btn-light w-100"
+                           asp-action="Index"
+                           asp-route-userId="@(Model.IsCurrentUser ? null : Model.Profile.Id)"
+                           asp-route-page="@(Model.Posts.PageNumber + 1)">Load more posts</a>
+                    }
+                }
+                else
+                {
+                    <div class="card empty-state" style="padding:2rem">
+                        <i class="fa-regular fa-newspaper"></i>
+                        <p class="mb-0">
+                            @if (Model.IsCurrentUser)
+                            {
+                                <text>You haven't posted anything yet. Share your first update above.</text>
+                            }
+                            else
+                            {
+                                <text>No posts to show.</text>
+                            }
+                        </p>
+                    </div>
+                }
+            </div>
+        </section>
+    </div>
+</div>
+
+@if (Model.IsCurrentUser)
+{
+    <div id="edit-profile-modal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Edit profile</h2>
+                <button type="button" class="btn-close" onclick="document.getElementById('edit-profile-modal').classList.remove('open')">&times;</button>
+            </div>
+            <form id="edit-profile-form">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Full name</label>
+                        <input name="displayName" class="form-control" value="@Model.Profile.DisplayName" required minlength="2" maxlength="100" autocomplete="name" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <input name="username" class="form-control" value="@Model.Profile.Username" required minlength="3" maxlength="30" pattern="[a-zA-Z0-9._]+" autocomplete="username" />
+                        <small class="text-muted">3–30 characters. Letters, numbers, dots, and underscores only.</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Bio</label>
+                        <textarea name="bio" class="form-control" rows="4" maxlength="500" placeholder="Tell people about yourself...">@Model.Profile.Bio</textarea>
+                        <small class="text-muted">Add a bio anytime — it's optional.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" onclick="document.getElementById('edit-profile-modal').classList.remove('open')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="change-email-modal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Change email</h2>
+                <button type="button" class="btn-close" onclick="document.getElementById('change-email-modal').classList.remove('open')">&times;</button>
+            </div>
+            <form id="change-email-form">
+                <div class="modal-body">
+                    <p class="text-muted" style="font-size:0.88rem;margin:0 0 1rem">Current email: <strong id="profile-current-email">@Model.Profile.Email</strong></p>
+                    <div id="change-email-step-1">
+                        <div class="form-group">
+                            <label class="form-label">New email address</label>
+                            <input type="email" name="newEmail" class="form-control" required autocomplete="email" placeholder="you@@example.com" />
+                            <p class="field-error d-none" data-error-for="newEmail" style="color:#b42318;font-size:0.82rem;margin-top:0.35rem"></p>
+                        </div>
+                    </div>
+                    <div id="change-email-step-2" class="d-none">
+                        <p class="text-muted" style="font-size:0.88rem">Enter the 6-digit code sent to <strong id="change-email-target"></strong>.</p>
+                        <div class="form-group">
+                            <label class="form-label">Verification code</label>
+                            <input type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" class="form-control" placeholder="123456" />
+                            <p class="field-error d-none" data-error-for="code" style="color:#b42318;font-size:0.82rem;margin-top:0.35rem"></p>
+                        </div>
+                    </div>
+                    <p id="change-email-alert" class="d-none form-alert" style="margin-top:0.75rem"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" onclick="document.getElementById('change-email-modal').classList.remove('open')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="change-email-submit">Send verification code</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+<script>
+async function uploadProfileFile(input, endpoint) {
+  if (!input.files?.length) return;
+  const fd = new FormData();
+  fd.append('file', input.files[0]);
+  try {
+    await Connectly.api(endpoint, { method: 'POST', body: fd });
+    Connectly.showToast('Photo updated!', 'success');
+    setTimeout(() => window.location.reload(), 400);
+  } catch (err) {
+    Connectly.showToast(err.message, 'error');
+    input.value = '';
+  }
+}
+
+document.getElementById('avatar-upload')?.addEventListener('change', e => uploadProfileFile(e.target, 'api/auth/profile-picture'));
+document.getElementById('cover-upload')?.addEventListener('change', e => uploadProfileFile(e.target, 'api/auth/cover-picture'));
+
+document.getElementById('edit-profile-form')?.addEventListener('submit', async e => {
+  e.preventDefault();
+  const fd = new FormData(e.currentTarget);
+  const displayName = (fd.get('displayName') || '').toString().trim();
+  const username = (fd.get('username') || '').toString().trim().toLowerCase();
+  try {
+    const updated = await Connectly.api('api/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify({
+        displayName,
+        username,
+        bio: fd.get('bio') || null
+      })
+    });
+    const stored = Connectly.auth.user();
+    stored.displayName = updated.displayName ?? updated.DisplayName ?? displayName;
+    localStorage.setItem('connectlyUser', JSON.stringify(stored));
+    Connectly.showToast('Profile updated.', 'success');
+    setTimeout(() => window.location.reload(), 400);
+  } catch (err) { Connectly.showToast(err.message, 'error'); }
+});
+
+let pendingChangeEmail = '';
+const currentProfileEmail = (document.getElementById('profile-current-email')?.textContent || '').trim().toLowerCase();
+
+function isValidEmailFormat(email) {
+  if (!email || email.length > 256 || /\s/.test(email)) return false;
+  const at = email.indexOf(String.fromCharCode(64));
+  const dot = email.lastIndexOf('.');
+  return at > 0 && dot > at + 1 && dot < email.length - 1;
+}
+
+function clearChangeEmailErrors() {
+  document.querySelectorAll('#change-email-form [data-error-for]').forEach(el => {
+    el.textContent = '';
+    el.classList.add('d-none');
+  });
+  document.getElementById('change-email-alert')?.classList.add('d-none');
+}
+
+function showChangeEmailError(field, message) {
+  const el = document.querySelector(`#change-email-form [data-error-for="${field}"]`);
+  if (el) {
+    el.textContent = message;
+    el.classList.remove('d-none');
+  }
+}
+
+document.getElementById('change-email-form')?.addEventListener('submit', async e => {
+  e.preventDefault();
+  clearChangeEmailErrors();
+  const btn = document.getElementById('change-email-submit');
+  const step1 = document.getElementById('change-email-step-1');
+  const step2 = document.getElementById('change-email-step-2');
+  const codeInput = document.querySelector('#change-email-form [name="code"]');
+
+  if (step2?.classList.contains('d-none')) {
+    const newEmail = (document.querySelector('#change-email-form [name="newEmail"]')?.value || '').trim().toLowerCase();
+    if (!newEmail) {
+      showChangeEmailError('newEmail', 'Email is required.');
+      return;
+    }
+    if (!isValidEmailFormat(newEmail)) {
+      showChangeEmailError('newEmail', 'Enter a valid email address.');
+      return;
+    }
+    if (newEmail === currentProfileEmail) {
+      showChangeEmailError('newEmail', 'That is already your current email address.');
+      return;
+    }
+    btn.disabled = true;
+    const oldText = btn.textContent;
+    btn.textContent = 'Sending…';
+    try {
+      const result = await Connectly.api('api/auth/change-email/request', {
+        method: 'POST',
+        body: JSON.stringify({ newEmail })
+      });
+      pendingChangeEmail = newEmail;
+      document.getElementById('change-email-target').textContent = newEmail;
+      step1?.classList.add('d-none');
+      step2?.classList.remove('d-none');
+      btn.textContent = 'Confirm new email';
+      codeInput?.focus();
+      Connectly.showToast('Verification code sent.', 'success');
+    } catch (err) {
+      if (err.fieldErrors?.newEmail) {
+        showChangeEmailError('newEmail', err.fieldErrors.newEmail.join(' '));
+      } else if (err.fieldErrors?.NewEmail) {
+        showChangeEmailError('newEmail', err.fieldErrors.NewEmail.join(' '));
+      } else {
+        Connectly.showToast(err.message, 'error');
+      }
+    } finally {
+      btn.disabled = false;
+      if (btn.textContent === 'Sending…') btn.textContent = oldText;
+    }
+    return;
+  }
+
+  const code = (codeInput?.value || '').trim();
+  if (!/^\d{6}$/.test(code)) {
+    showChangeEmailError('code', 'Enter the 6-digit verification code.');
+    return;
+  }
+  btn.disabled = true;
+  try {
+    await Connectly.api('api/auth/change-email/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ newEmail: pendingChangeEmail, code })
+    });
+    Connectly.showToast('Email updated successfully.', 'success');
+    setTimeout(() => window.location.reload(), 400);
+  } catch (err) {
+    if (err.fieldErrors?.code) showChangeEmailError('code', err.fieldErrors.code.join(' '));
+    else if (err.fieldErrors?.newEmail) {
+      step2?.classList.add('d-none');
+      step1?.classList.remove('d-none');
+      btn.textContent = 'Send verification code';
+      showChangeEmailError('newEmail', err.fieldErrors.newEmail.join(' '));
+    } else Connectly.showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.querySelector('#change-email-form [name="newEmail"]')?.addEventListener('input', e => {
+  e.target.classList.remove('is-invalid');
+  document.querySelector('#change-email-form [data-error-for="newEmail"]')?.classList.add('d-none');
+});
+</script>
+}

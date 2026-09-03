@@ -1,0 +1,46 @@
+@model Application.DTOs.SearchDtos.UserSearchResultDto
+<div class="user-discover-card" data-user-id="@Model.Id">
+    <a asp-controller="Profile" asp-action="Index" asp-route-userId="@Model.Id" class="user-discover-main">
+        <span class="avatar avatar-lg">
+            @if (!string.IsNullOrWhiteSpace(Model.ProfilePictureUrl))
+            {
+                <img src="@Model.ProfilePictureUrl" alt="" />
+            }
+            else
+            {
+                @Model.DisplayName.FirstOrDefault()
+            }
+        </span>
+        <span class="user-discover-info">
+            <strong>@Model.DisplayName</strong>
+            <span class="text-muted" style="font-size:0.82rem">@Model.Username</span>
+            @if (!string.IsNullOrWhiteSpace(Model.Bio))
+            {
+                <span class="text-muted">@Model.Bio</span>
+            }
+            else
+            {
+                <span class="text-muted">Connectly member</span>
+            }
+        </span>
+    </a>
+    @{
+        var status = Model.FriendshipStatus;
+        var btnClass = "btn btn-primary btn-sm add-friend-btn";
+        var btnText = "Add Friend";
+        var disabled = false;
+
+        if (status == "Friends") { btnText = "Friends"; disabled = true; btnClass = "btn btn-light btn-sm"; }
+        else if (status == "PendingSent") { btnText = "Request sent"; disabled = true; btnClass = "btn btn-light btn-sm"; }
+        else if (status == "PendingReceived") { btnText = "Respond"; btnClass = "btn btn-light btn-sm"; }
+        else if (status == "Blocked") { btnText = "Unavailable"; disabled = true; btnClass = "btn btn-light btn-sm"; }
+    }
+    @if (status == "PendingReceived")
+    {
+        <a asp-controller="Friendships" asp-action="Pending" class="@btnClass">@btnText</a>
+    }
+    else
+    {
+        <button type="button" class="@btnClass" data-user-id="@Model.Id" @(disabled ? "disabled" : "")>@btnText</button>
+    }
+</div>

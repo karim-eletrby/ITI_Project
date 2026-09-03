@@ -1,0 +1,40 @@
+@model string
+@{
+    var userId = ViewData["UserId"]?.ToString() ?? "";
+    var status = Model ?? "None";
+}
+
+@if (status == "Friends")
+{
+    <button type="button" class="btn btn-light btn-sm" disabled><i class="fa-solid fa-user-check"></i> Friends</button>
+}
+else if (status == "PendingSent")
+{
+    <button type="button" class="btn btn-light btn-sm" disabled>Request sent</button>
+}
+else if (status == "PendingReceived")
+{
+    <a asp-controller="Friendships" asp-action="Pending" class="btn btn-primary btn-sm">Respond to request</a>
+}
+else if (status == "Blocked")
+{
+    <button type="button" class="btn btn-light btn-sm" disabled>Unavailable</button>
+}
+else
+{
+    <button type="button" id="add-friend" data-user-id="@userId" class="btn btn-primary btn-sm">
+        <i class="fa-solid fa-user-plus"></i> Add friend
+    </button>
+    <script>
+    document.getElementById('add-friend')?.addEventListener('click', async e => {
+      const btn = e.currentTarget;
+      try {
+        await Connectly.api('api/friendships/request', { method: 'POST', body: JSON.stringify({ receiverId: btn.dataset.userId }) });
+        btn.disabled = true;
+        btn.innerHTML = 'Request sent';
+        btn.className = 'btn btn-light btn-sm';
+        Connectly.showToast('Friend request sent!', 'success');
+      } catch (err) { Connectly.showToast(err.message, 'error'); }
+    });
+    </script>
+}

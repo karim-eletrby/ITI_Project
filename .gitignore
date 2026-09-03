@@ -1,0 +1,46 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+_audit_build_out/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# User-specific uploads (keep folder structure via .gitkeep if needed)
+**/wwwroot/uploads/**
+!**/wwwroot/uploads/.gitkeep
+
+# Secrets & local overrides
+secrets.json
+*.pfx
+.env
+.env.*
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# NuGet
+*.nupkg
+**/packages/*
+!**/packages/build/
+
+# Node.js
+node_modules/
+**/node_modules/
+
+# Test / coverage
+TestResults/
+coverage/
+*.coverage
+
+# EF local tools cache
+.fingerprint

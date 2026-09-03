@@ -1,0 +1,74 @@
+@using Application.Common
+@using Application.DTOs.FriendshipDtos
+@model PagedResult<PostDto>
+@{ ViewData["Title"] = "Home"; var birthdays = ViewBag.BirthdaysToday as IReadOnlyList<FriendBirthdayDto> ?? Array.Empty<FriendBirthdayDto>(); }
+<div class="page-container">
+    <div class="feed-grid">
+        <section class="feed-main">
+            <header class="page-header">
+                <p class="eyebrow">Community</p>
+                <h1>Connectly</h1>
+            </header>
+
+            <div class="card card-body" style="margin-bottom:1rem">
+                <div class="composer">
+                    <span class="avatar avatar-md">@User.Identity?.Name?.FirstOrDefault()</span>
+                    <button type="button" id="open-create-post" class="composer-trigger">What's on your mind?</button>
+                </div>
+            </div>
+
+            @if (Model.Items.Any())
+            {
+                foreach (var post in Model.Items)
+                {
+                    <partial name="~/Views/Posts/_PostCard.cshtml" model="post" />
+                }
+            }
+            else
+            {
+                <div class="card empty-state">
+                    <i class="fa-regular fa-newspaper"></i>
+                    <h2 style="font-size:1.1rem;margin:0 0 0.35rem">Your feed is waiting for an update.</h2>
+                    <p class="mb-0">Share a thought or connect with people to see their posts here.</p>
+                </div>
+            }
+
+            @if (Model.HasNextPage)
+            {
+                <a class="btn btn-light w-100 mt-3" asp-action="Index" asp-route-page="@(Model.PageNumber + 1)">Load more posts</a>
+            }
+        </section>
+
+        <aside class="feed-sidebar">
+            <div class="card card-body" id="feed-birthdays-card">
+                <p style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin:0 0 0.75rem">Birthdays Today</p>
+                <div id="feed-birthdays-list" class="feed-birthdays-list">
+                    @if (birthdays.Count == 0)
+                    {
+                        <p class="text-muted feed-birthdays-empty" style="font-size:0.88rem;margin:0">No friends have birthdays today.</p>
+                    }
+                    else
+                    {
+                        foreach (var friend in birthdays)
+                        {
+                            <a class="feed-birthday-row" href="/Profile?userId=@Uri.EscapeDataString(friend.UserId)">
+                                <span class="avatar avatar-sm">
+                                    @if (!string.IsNullOrWhiteSpace(friend.ProfilePictureUrl))
+                                    {
+                                        <img src="@friend.ProfilePictureUrl" alt="" />
+                                    }
+                                    else
+                                    {
+                                        @friend.DisplayName.FirstOrDefault()
+                                    }
+                                </span>
+                                <span class="feed-birthday-name">@friend.DisplayName</span>
+                                <i class="fa-solid fa-cake-candles feed-birthday-icon" aria-hidden="true"></i>
+                            </a>
+                        }
+                    }
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>

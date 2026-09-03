@@ -1,0 +1,312 @@
+@model ChatPageViewModel
+@{ ViewData["Title"] = "Messages"; Layout = "_Layout"; var hasActive = !string.IsNullOrWhiteSpace(Model.ActiveUserId); }
+<div class="page-container-wide">
+    <div class="chat-layout @(hasActive ? "has-active" : "")">
+        <div class="chat-list-pane">
+            <div class="chat-list-header">
+                <h1>Messages</h1>
+                <div class="chat-tabs">
+                    <button type="button" class="chat-tab active" data-filter="inbox">Inbox</button>
+                    <button type="button" class="chat-tab" data-filter="requests">Requests</button>
+                </div>
+                <div class="chat-search" style="margin-top:0.85rem">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="search" id="conv-search" class="form-control" placeholder="Search messages..." />
+                </div>
+            </div>
+            <div class="conversation-list" id="conversation-list">
+                @foreach (var conversation in Model.Conversations)
+                {
+                    var isActive = conversation.OtherUserId == Model.ActiveUserId;
+                    <a asp-action="Index" asp-route-id="@conversation.OtherUserId"
+                       data-request="@conversation.IsRequest.ToString().ToLowerInvariant()"
+                       data-name="@conversation.OtherUserName.ToLowerInvariant()"
+                       class="conversation-item conversation-link @(isActive ? "active" : "")">
+                        <span class="avatar avatar-md">
+                            @if (!string.IsNullOrWhiteSpace(conversation.OtherUserProfilePictureUrl))
+                            {
+                                <img src="@conversation.OtherUserProfilePictureUrl" alt="" />
+                            }
+                            else
+                            {
+                                @conversation.OtherUserName.FirstOrDefault()
+                            }
+                        </span>
+                        <span class="conv-body">
+                            <span class="conv-top">
+                                <strong class="conv-name">@conversation.OtherUserName</strong>
+                                <small class="conv-time">@conversation.LastMessageSentAt.ToLocalTime().ToString("h:mm tt")</small>
+                            </span>
+                            <span class="conv-preview">@conversation.LastMessage</span>
+                        </span>
+                        @if (conversation.UnreadCount > 0)
+                        {
+                            <span class="unread-badge">@conversation.UnreadCount</span>
+                        }
+                    </a>
+                }
+                @if (!Model.Conversations.Any())
+                {
+                    <div class="empty-state" style="padding:2rem"><p class="mb-0">No conversations yet.</p></div>
+                }
+            </div>
+        </div>
+
+        <div class="chat-pane">
+            @if (hasActive)
+            {
+                @if (Model.ActiveIsRequest && Model.CanSendMessage)
+                {
+                    <div class="request-warning">
+                        <i class="fa-solid fa-envelope"></i>
+                        @if (Model.IsIncomingMessageRequest)
+                        {
+                            <span>Message request — reply to accept and move this chat to your inbox.</span>
+                        }
+                        else
+                        {
+                            <span>Message request — you can send one message until they accept by replying.</span>
+                        }
+                    </div>
+                }
+                @if (Model.ActiveIsRequest && !Model.CanSendMessage && Model.IsOutgoingMessageRequest)
+                {
+                    <div class="request-warning request-warning-muted">
+                        <i class="fa-solid fa-clock"></i>
+                        <span>Waiting for them to accept your message request by replying.</span>
+                    </div>
+                }
+                @if (!Model.CanSendMessage && !string.IsNullOrWhiteSpace(Model.SendBlockedReason) && !Model.IsOutgoingMessageRequest)
+                {
+                    <div class="request-warning request-warning-muted">
+                        <i class="fa-solid fa-circle-info"></i> @Model.SendBlockedReason
+                    </div>
+                }
+                <div class="chat-header">
+                    <a asp-action="Index" class="chat-back-btn" aria-label="Back to conversations">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </a>
+                    <div class="chat-header-info">
+                        <h2>@(Model.ActiveUserName ?? "Conversation")</h2>
+                        <span class="chat-status"><span class="status-dot"></span> Active now</span>
+                    </div>
+                </div>
+                <div id="chat-window" class="chat-messages">
+                    @foreach (var message in Model.Messages)
+                    {
+                        @await Html.PartialAsync("_MessageBubble", message, new ViewDataDictionary(ViewData) { { "Outgoing", message.SenderId == Model.CurrentUserId } })
+                    }
+                </div>
+                <form id="message-form" class="chat-input-area" data-can-send="@Model.CanSendMessage.ToString().ToLowerInvariant()">
+                    <div class="chat-input-row">
+                        <input id="message-input" class="form-control" maxlength="2000" placeholder="@(Model.CanSendMessage ? "Type a message..." : "Messaging locked")" autocomplete="off" @(Model.CanSendMessage ? "" : "disabled") />
+                        <button type="submit" class="btn-send" aria-label="Send" @(Model.CanSendMessage ? "" : "disabled")><i class="fa-solid fa-paper-plane"></i></button>
+                    </div>
+                    <small class="text-muted" style="font-size:0.75rem;margin-top:0.35rem;display:block">@(Model.CanSendMessage ? "Press Enter to send" : Model.SendBlockedReason)</small>
+                </form>
+            }
+            else
+            {
+                <div class="chat-empty">
+                    <div>
+                        <i class="fa-regular fa-comment-dots fa-2x" style="color:var(--primary);margin-bottom:0.75rem"></i>
+                        <p>Select a conversation to start messaging</p>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(() => {
+  const applyConversationFilter = (filter) => {
+    const requests = filter === 'requests';
+    document.querySelectorAll('.conversation-link').forEach(x => {
+      x.style.display = (x.dataset.request === 'true') === requests ? '' : 'none';
+    });
+  };
+
+  document.querySelectorAll('[data-filter]').forEach(tab => tab.addEventListener('click', () => {
+    document.querySelectorAll('[data-filter]').forEach(x => x.classList.remove('active'));
+    tab.classList.add('active');
+    applyConversationFilter(tab.dataset.filter);
+  }));
+
+  const activeIsRequest = @Model.ActiveIsRequest.ToString().ToLowerInvariant();
+  if (activeIsRequest) {
+    const requestsTab = document.querySelector('[data-filter="requests"]');
+    const inboxTab = document.querySelector('[data-filter="inbox"]');
+    requestsTab?.classList.add('active');
+    inboxTab?.classList.remove('active');
+    applyConversationFilter('requests');
+  }
+
+  document.getElementById('conv-search')?.addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    const activeFilter = document.querySelector('.chat-tab.active')?.dataset.filter || 'inbox';
+    const requests = activeFilter === 'requests';
+    document.querySelectorAll('.conversation-link').forEach(x => {
+      const matchesTab = (x.dataset.request === 'true') === requests;
+      const matchesSearch = x.dataset.name.includes(q);
+      x.style.display = matchesTab && matchesSearch ? '' : 'none';
+    });
+  });
+
+  const token = localStorage.getItem('accessToken');
+  const currentUserId = '@Model.CurrentUserId';
+  const otherUserId = '@Model.ActiveUserId';
+  if (!token || !window.signalR) return;
+
+  const box = document.getElementById('chat-window');
+  const input = document.getElementById('message-input');
+  const form = document.getElementById('message-form');
+  let timer;
+
+  const safe = v => { const e = document.createElement('span'); e.textContent = v || ''; return e.innerHTML; };
+  const pick = (obj, ...keys) => { for (const k of keys) if (obj?.[k] != null) return obj[k]; return null; };
+
+  function renderSharedPostCard(shared) {
+    if (!shared) return '';
+    const id = shared.id ?? shared.Id;
+    if (!id) return '';
+    const author = shared.authorName ?? shared.AuthorName ?? 'User';
+    const authorPic = shared.authorProfilePictureUrl ?? shared.AuthorProfilePictureUrl;
+    const content = shared.content ?? shared.Content ?? '';
+    const mediaUrl = shared.mediaUrl ?? shared.MediaUrl;
+    const avatar = authorPic
+      ? `<img src="${safe(authorPic)}" alt="">`
+      : safe(author.charAt(0).toUpperCase());
+    const preview = content.length > 160 ? `${safe(content.slice(0, 160))}…` : safe(content);
+    const isVideo = mediaUrl && /\.(mp4|webm|mov|m4v)$/i.test(mediaUrl);
+    const media = mediaUrl
+      ? (isVideo
+        ? `<video src="${safe(mediaUrl)}" class="chat-shared-post-media" muted playsinline preload="metadata"></video>`
+        : `<img src="${safe(mediaUrl)}" alt="Post media" class="chat-shared-post-media" />`)
+      : '';
+    const text = content ? `<p class="chat-shared-post-content">${preview}</p>` : '';
+    return `<a href="/Feed#post-${id}" class="chat-shared-post">
+      <div class="chat-shared-post-header"><span class="avatar avatar-sm">${avatar}</span><span class="chat-shared-post-author">${safe(author)}</span></div>
+      ${text}${media}
+      <span class="chat-shared-post-cta">View post <i class="fa-solid fa-arrow-up-right-from-square"></i></span>
+    </a>`;
+  }
+
+  function appendMessage(m, out) {
+    if (!box) return;
+    const content = pick(m, 'content', 'Content') ?? '';
+    const shared = pick(m, 'sharedPost', 'SharedPost');
+    const textHtml = content.trim() ? `<div class="message-text">${safe(content)}</div>` : '';
+    const sharedHtml = renderSharedPostCard(shared);
+    box.insertAdjacentHTML('beforeend',
+      `<div class="message-row ${out ? 'outgoing' : 'incoming'}"><div class="message-bubble">${textHtml}${sharedHtml}</div></div>`);
+  }
+
+  function updateConversationFromMessage(m) {
+    const senderId = pick(m, 'senderId', 'SenderId');
+    const receiverId = pick(m, 'receiverId', 'ReceiverId');
+    const peerId = senderId === currentUserId ? receiverId : senderId;
+    if (!peerId) return;
+
+    const link = document.querySelector(`.conversation-link[href*="${peerId}"]`);
+    if (!link) return;
+
+    const shared = pick(m, 'sharedPost', 'SharedPost');
+    const content = pick(m, 'content', 'Content') ?? '';
+    const preview = shared ? '📎 Shared a post' : content;
+    const previewEl = link.querySelector('.conv-preview');
+    if (previewEl) previewEl.textContent = preview;
+
+    const list = document.getElementById('conversation-list');
+    if (list?.firstElementChild !== link) list?.prepend(link);
+
+    if (senderId !== currentUserId && peerId !== otherUserId) {
+      let badge = link.querySelector('.unread-badge');
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'unread-badge';
+        badge.textContent = '1';
+        link.appendChild(badge);
+      } else {
+        badge.textContent = String(Number(badge.textContent || 0) + 1);
+      }
+    }
+  }
+
+  const connection = new signalR.HubConnectionBuilder()
+    .withUrl('/chatHub', {
+      accessTokenFactory: () => localStorage.getItem('accessToken') || ''
+    })
+    .withAutomaticReconnect()
+    .configureLogging(signalR.LogLevel.Warning)
+    .build();
+
+  connection.on('ReceiveMessage', m => {
+    const senderId = pick(m, 'senderId', 'SenderId');
+    const receiverId = pick(m, 'receiverId', 'ReceiverId');
+    updateConversationFromMessage(m);
+
+    if (!otherUserId) return;
+    if ((senderId === otherUserId && receiverId === currentUserId) ||
+        (senderId === currentUserId && receiverId === otherUserId)) {
+      appendMessage(m, senderId === currentUserId);
+      if (box) box.scrollTop = box.scrollHeight;
+    }
+  });
+
+  connection.start().catch(err => console.error('Chat hub failed:', err));
+
+  if (!otherUserId) return;
+
+  let canSendMessage = form?.dataset.canSend !== 'false';
+
+  async function refreshComposerLock() {
+    try {
+      const res = await fetch(`/api/chat/messages/${encodeURIComponent(otherUserId)}/context`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const body = await res.json();
+      const ctx = body?.data ?? body?.Data;
+      const allowed = ctx?.canSendMessage ?? ctx?.CanSendMessage;
+      const stillRequest = ctx?.isRequestConversation ?? ctx?.IsRequestConversation;
+      if (activeIsRequest && stillRequest === false) {
+        window.location.reload();
+        return;
+      }
+      if (allowed === false) {
+        canSendMessage = false;
+        input.disabled = true;
+        form.querySelector('.btn-send')?.setAttribute('disabled', 'disabled');
+        input.placeholder = 'Messaging locked';
+      }
+    } catch { /* ignore */ }
+  }
+
+  form?.addEventListener('submit', e => {
+    e.preventDefault();
+    if (!canSendMessage) return;
+    const content = input.value.trim();
+    if (!content) return;
+    connection.invoke('SendDirectMessage', { receiverId: otherUserId, content })
+      .then(async () => {
+        input.value = '';
+        await refreshComposerLock();
+      })
+      .catch(err => alert(err?.message || 'Could not send message.'));
+  });
+
+  input?.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form?.requestSubmit(); }
+  });
+
+  input?.addEventListener('input', () => {
+    connection.invoke('SendTypingIndicator', otherUserId);
+    clearTimeout(timer);
+    timer = setTimeout(() => connection.invoke('SendStoppedTypingIndicator', otherUserId), 700);
+  });
+
+  if (box) box.scrollTop = box.scrollHeight;
+})();
+</script>
+}

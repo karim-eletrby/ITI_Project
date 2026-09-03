@@ -1,0 +1,133 @@
+@model PostDto
+@using System.Security.Claims
+@{
+    var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var isOwner = !string.IsNullOrEmpty(currentUserId) && currentUserId == Model.UserId;
+    var isVideo = false;
+    if (!string.IsNullOrWhiteSpace(Model.MediaUrl))
+    {
+        var ext = System.IO.Path.GetExtension(Model.MediaUrl).ToLowerInvariant();
+        isVideo = ext is ".mp4" or ".webm" or ".mov" or ".m4v";
+    }
+    var shared = Model.SharedPost;
+    var sharedIsVideo = false;
+    if (shared != null && !string.IsNullOrWhiteSpace(shared.MediaUrl))
+    {
+        var ext = System.IO.Path.GetExtension(shared.MediaUrl).ToLowerInvariant();
+        sharedIsVideo = ext is ".mp4" or ".webm" or ".mov" or ".m4v";
+    }
+}
+<article class="card post-card" id="post-@Model.Id" data-post-id="@Model.Id" data-likes-count="@Model.LikesCount" data-is-owner="@(isOwner ? "true" : "false")">
+    <div class="card-body">
+        <div class="post-header">
+            <span class="avatar avatar-md">
+                @if (!string.IsNullOrWhiteSpace(Model.AuthorProfilePictureUrl))
+                {
+                    <img src="@Model.AuthorProfilePictureUrl" alt="" />
+                }
+                else
+                {
+                    @Model.AuthorName.FirstOrDefault()
+                }
+            </span>
+            <div class="post-header-info">
+                <div class="post-header-title">
+                    <a asp-controller="Profile" asp-action="Index" asp-route-userId="@Model.UserId" style="font-weight:600">@Model.AuthorName</a>
+                </div>
+                @if (shared != null)
+                {
+                    <div class="post-meta">shared a post · @Model.CreatedAt.ToLocalTime().ToString("MMM d · h:mm tt")</div>
+                }
+                else
+                {
+                    <div class="post-meta">@Model.CreatedAt.ToLocalTime().ToString("MMM d · h:mm tt") · @Model.Privacy</div>
+                }
+            </div>
+            @if (isOwner)
+            {
+                <button type="button" class="post-delete" data-post-id="@Model.Id" aria-label="Delete post" title="Delete post">
+                    <i class="fa-regular fa-trash-can"></i>
+                </button>
+            }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.Content))
+        {
+            <p class="post-content">@Model.Content</p>
+        }
+
+        @if (shared != null)
+        {
+            <div class="shared-post-embed">
+                <div class="shared-post-header">
+                    <span class="avatar avatar-sm">
+                        @if (!string.IsNullOrWhiteSpace(shared.AuthorProfilePictureUrl))
+                        {
+                            <img src="@shared.AuthorProfilePictureUrl" alt="" />
+                        }
+                        else
+                        {
+                            @shared.AuthorName.FirstOrDefault()
+                        }
+                    </span>
+                    <a asp-controller="Profile" asp-action="Index" asp-route-userId="@shared.UserId" class="shared-post-author">@shared.AuthorName</a>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(shared.Content))
+                {
+                    <p class="shared-post-content">@shared.Content</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(shared.MediaUrl))
+                {
+                    if (sharedIsVideo)
+                    {
+                        <video src="@shared.MediaUrl" class="post-media" controls playsinline preload="metadata"></video>
+                    }
+                    else
+                    {
+                        <img src="@shared.MediaUrl" alt="Shared post media" class="post-media" />
+                    }
+                }
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(Model.MediaUrl))
+        {
+            if (isVideo)
+            {
+                <video src="@Model.MediaUrl" class="post-media" controls playsinline preload="metadata"></video>
+            }
+            else
+            {
+                <img src="@Model.MediaUrl" alt="Post media" class="post-media" />
+            }
+        }
+    </div>
+    <div class="post-actions">
+        <div class="post-action-buttons">
+            <button type="button" class="post-action post-like @(Model.IsLikedByCurrentUser ? "liked" : "")" data-post-id="@Model.Id" data-liked="@Model.IsLikedByCurrentUser.ToString().ToLowerInvariant()">
+                <i class="@(Model.IsLikedByCurrentUser ? "fa-solid" : "fa-regular") fa-heart"></i>
+                <span class="post-like-count @(Model.LikesCount > 0 ? "" : "d-none")" data-likes-count>@Model.LikesCount</span> Like
+            </button>
+            <button type="button" class="post-action post-comment-toggle" data-post-id="@Model.Id">
+                <i class="fa-regular fa-comment"></i>
+                <span data-comment-count>@Model.CommentsCount</span> Comment
+            </button>
+            <button type="button" class="post-action post-share" data-post-id="@Model.Id" data-post-author="@Model.AuthorName">
+                <i class="fa-solid fa-share"></i> Share
+            </button>
+        </div>
+        @if (isOwner)
+        {
+            <button type="button" class="post-likes-trigger @(Model.LikesCount > 0 ? "" : "d-none")" data-post-id="@Model.Id" aria-label="See who liked this post">
+                <i class="fa-solid fa-heart"></i>
+            </button>
+        }
+    </div>
+    <div class="comments-section">
+        <div class="comments-list" data-post-id="@Model.Id" aria-live="polite"></div>
+        <form class="comment-form" data-post-id="@Model.Id">
+            <span class="avatar avatar-sm comment-form-avatar">@User.Identity?.Name?.FirstOrDefault()</span>
+            <input class="form-control comment-input" name="content" maxlength="1000" required placeholder="Write a comment…" autocomplete="off" />
+            <button type="submit" class="btn btn-primary btn-sm comment-submit" aria-label="Post comment"><i class="fa-solid fa-paper-plane"></i></button>
+        </form>
+    </div>
+</article>

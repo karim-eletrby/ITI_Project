@@ -1,0 +1,154 @@
+@model FriendRequestsPageViewModel
+@using Domain.Enums
+@{ ViewData["Title"] = "Friend requests"; }
+<div class="page-container">
+    <header class="page-header">
+        <p class="eyebrow">Your network</p>
+        <h1>Friend requests</h1>
+    </header>
+
+    <section class="friend-requests-section">
+        <h2 class="section-title">
+            Friend requests
+            @if (Model.PendingRequestCount > 0)
+            {
+                <span class="section-count">@Model.PendingRequestCount pending</span>
+            }
+        </h2>
+        @if (Model.IncomingRequests.Any())
+        {
+            <div class="friend-request-list">
+                @foreach (var request in Model.IncomingRequests)
+                {
+                    var activityDate = request.UpdatedAt ?? request.CreatedAt;
+                    <div class="friend-request-card" data-requester-id="@request.RequesterId" data-status="@request.Status">
+                        <a asp-controller="Profile" asp-action="Index" asp-route-userId="@request.RequesterId" class="friend-request-user">
+                            <span class="avatar avatar-lg">
+                                @if (!string.IsNullOrWhiteSpace(request.RequesterProfilePictureUrl))
+                                {
+                                    <img src="@request.RequesterProfilePictureUrl" alt="" />
+                                }
+                                else
+                                {
+                                    @request.RequesterName.FirstOrDefault()
+                                }
+                            </span>
+                            <span class="friend-request-info">
+                                <strong>@request.RequesterName</strong>
+                                <small class="text-muted">
+                                    @if (request.Status == FriendShipStatus.Pending)
+                                    {
+                                        @:Sent @request.CreatedAt.ToLocalTime().ToString("MMM d")
+                                    }
+                                    else if (request.Status == FriendShipStatus.Accepted)
+                                    {
+                                        @:Accepted @activityDate.ToLocalTime().ToString("MMM d")
+                                    }
+                                    else
+                                    {
+                                        @:Declined @activityDate.ToLocalTime().ToString("MMM d")
+                                    }
+                                </small>
+                            </span>
+                        </a>
+                        <div class="friend-request-actions">
+                            @if (request.Status == FriendShipStatus.Pending)
+                            {
+                                <button type="button" class="respond-request btn btn-primary btn-sm" data-status="1">Confirm</button>
+                                <button type="button" class="respond-request btn btn-light btn-sm" data-status="2">Delete</button>
+                            }
+                            else if (request.Status == FriendShipStatus.Accepted)
+                            {
+                                <span class="request-status-pill accepted"><i class="fa-solid fa-check"></i> Accepted</span>
+                                <a asp-controller="Chat" asp-action="Index" asp-route-id="@request.RequesterId" class="btn btn-light btn-sm">Message</a>
+                            }
+                            else
+                            {
+                                <span class="request-status-pill declined">Declined</span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="card card-body empty-state" style="padding:2rem">
+                <i class="fa-regular fa-face-smile"></i>
+                <p class="mb-0">No friend requests yet.</p>
+            </div>
+        }
+    </section>
+
+    <section class="friend-requests-section mt-4">
+        <h2 class="section-title">People you may know</h2>
+        <p class="text-muted" style="font-size:0.88rem;margin:-0.35rem 0 1rem">Including Connectly members and demo accounts you can connect with.</p>
+        @if (Model.PeopleYouMayKnow.Any())
+        {
+            <div class="discover-grid">
+                @foreach (var person in Model.PeopleYouMayKnow)
+                {
+                    <partial name="~/Views/Shared/_UserDiscoverCard.cshtml" model="person" />
+                }
+            </div>
+            <a asp-controller="Search" asp-action="Index" class="btn btn-light w-100 mt-3">See more people</a>
+        }
+        else
+        {
+            <div class="card card-body empty-state" style="padding:2rem">
+                <p class="mb-0">You're connected with everyone available right now. Check back later!</p>
+            </div>
+        }
+    </section>
+</div>
+
+@section Scripts {
+<script>
+function renderRequestActions(row, status) {
+  const actions = row.querySelector('.friend-request-actions');
+  const requesterId = row.dataset.requesterId;
+  if (!actions) return;
+
+  if (status === 1 || status === 'Accepted') {
+    actions.innerHTML = `
+      <span class="request-status-pill accepted"><i class="fa-solid fa-check"></i> Accepted</span>
+      <a href="/Chat?id=${encodeURIComponent(requesterId)}" class="btn btn-light btn-sm">Message</a>`;
+    row.dataset.status = 'Accepted';
+    const meta = row.querySelector('.friend-request-info small');
+    if (meta) meta.textContent = 'Accepted just now';
+  } else if (status === 2 || status === 'Rejected') {
+    actions.innerHTML = '<span class="request-status-pill declined">Declined</span>';
+    row.dataset.status = 'Rejected';
+    const meta = row.querySelector('.friend-request-info small');
+    if (meta) meta.textContent = 'Declined just now';
+  }
+}
+
+document.querySelectorAll('.respond-request').forEach(button => button.addEventListener('click', async () => {
+  const row = button.closest('[data-requester-id]');
+  const decision = Number(button.dataset.status);
+  try {
+    await Connectly.api('api/friendships/respond', {
+      method: 'POST',
+      body: JSON.stringify({ requesterId: row.dataset.requesterId, decision })
+    });
+    renderRequestActions(row, decision);
+    Connectly.showToast(decision === 1 ? 'Friend request accepted.' : 'Friend request declined.', 'success');
+  } catch (err) { Connectly.showToast(err.message, 'error'); }
+}));
+
+document.querySelectorAll('.add-friend-btn').forEach(btn => btn.addEventListener('click', async () => {
+  if (btn.disabled) return;
+  const userId = btn.dataset.userId;
+  btn.disabled = true;
+  try {
+    await Connectly.api('api/friendships/request', { method: 'POST', body: JSON.stringify({ receiverId: userId }) });
+    btn.textContent = 'Request sent';
+    Connectly.showToast('Friend request sent.', 'success');
+  } catch (err) {
+    Connectly.showToast(err.message, 'error');
+    btn.disabled = false;
+  }
+}));
+</script>
+}
